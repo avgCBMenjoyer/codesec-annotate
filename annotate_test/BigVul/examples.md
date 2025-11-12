@@ -430,3 +430,46 @@ Field: PatchType (bounds check added, safe arithmetic)
 [Optional] Likely variants/impact (one line):
 Similar integer overflows possible in other size calculations.
 
+## Summary
+
+
+### GPT-4o-mini
+
+* **Good**
+    * Correctly identified the high-level summary, impact (DoS -> RCE), and key function.
+    * Successfully extracted the full code for both the vulnerable and fixed functions.
+    * The "Fix summary" is accurate and concise.
+
+* **Bad**
+    * **Critically flawed exploit payload.** The example code (`PangoGlyphString glyphString; pango_glyph_string_set_size(&glyphString, INT_MAX);`) would cause a crash (e.g., Segmentation Fault) by using an **uninitialized stack variable**. It fails to call `pango_glyph_string_new()`, meaning it doesn't understand the API and wouldn't even reach the vulnerable logic.
+    * **Incorrect date interpretation.** It mistakenly uses the NVD "Update Date" (2018-10-10) as the "Patch release" date. The commit and CVE are from 2009.
+    * The "Root cause" is very generic ("Failure to validate...") and misses the specific nuance of the bug (the multiplication overflow).
+    * The "Exploit script (summary)" bullets are generic and unhelpful.
+
+---
+
+### Claude Haiku 4.5
+
+* **Good**
+    * **Excellent Root Cause analysis.** It's the most detailed and accurate, correctly identifying the **two-stage overflow**: first, `string->space *= 2` overflows to a negative value, and second, the "fix" for that (`G_MAXINT - 8`) *also* overflows when multiplied by `sizeof()` in the `g_realloc` call.
+    * **Correct and runnable exploit payload.** The example code is a complete, minimal `main` function that correctly initializes the struct using `pango_glyph_string_new()` and uses a plausible value (`0x7FFFFFFF`) to trigger the vulnerability.
+    * **High-quality "Exploit script (summary)".** The bullets accurately trace the detailed root cause, step-by-step.
+    * "Patch Analysis" is insightful, noting the fix changes from *reactive* overflow detection to *proactive* size calculation.
+    * Wisely put "NA" for the patch release date instead of guessing or using the incorrect "Update Date."
+
+* **Bad**
+    * (No significant flaws; this is a very strong annotation.)
+
+---
+
+### Deepseek V30324
+
+* **Good**
+    * **Excellent and precise exploit payload.** The trigger value `G_MAXINT/2 + 1` is arguably the *most* insightful, as it's the minimal value required to make `string->space *= 2` overflow to a negative number, demonstrating a deep understanding of the bug's trigger condition.
+    * Correctly uses `pango_glyph_string_new()` in the exploit example.
+    * The "Fix code" snippet is concise, showing *only* the new logic rather than the entire function, which is effective.
+    * "Root cause" is accurate and succinct.
+
+* **Bad**
+    * **Incorrect date interpretation.** Like 4o-mini, it mistakenly uses the NVD "Update Date" (2018-10-10) as the "Patch release" date.
+    * The exploit payload is just a function snippet, not a complete, runnable example like Haiku's (missing `#include` and `main`). This is a minor stylistic issue.
